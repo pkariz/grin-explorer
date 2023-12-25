@@ -1,0 +1,3 @@
+class UpdateBlockchainProgressError(Exception):
+    pass
+

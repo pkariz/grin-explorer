@@ -1,0 +1,132 @@
+version: "3.7"
+
+volumes:
+  db-data: {}
+  django_static: {}
+
+services:
+  postgres:
+    image: postgres
+    env_file: .env.prod
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: ./docker/nginx/Dockerfile
+    volumes:
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+      - django_static:/dist_django
+      - ./docker/nginx/certs:/etc/nginx/certs
+    command: /start.sh
+    depends_on:
+      - django
+      - daphne
+      - postgres
+      - redis
+    ports:
+      - "443:443"
+      - "80:80"
+
+  django:
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+    env_file: .env.prod
+    command: /start-prod-django.sh
+    volumes:
+      - .:/code
+      - django_static:/code/dist/static
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+    # host-gateway is not working on my unix, so rely on default docker network
+    extra_hosts:
+      - "host.docker.internal:172.177.0.1"
+
+  daphne:
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+    env_file: .env.prod
+    command: pipenv run daphne -b 0.0.0.0 -p 8001 backend.asgi:application
+    volumes:
+      - .:/code
+      - django_static:/code/dist/static
+    ports:
+      - "127.0.0.1:8001:8001"
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+    # host-gateway is not working on my unix, so rely on default docker network
+    extra_hosts:
+      - "host.docker.internal:172.177.0.1"
+
+  redis:
+    image: redis
+    user: root
+    volumes:
+      - ./redis-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    # why we need healthcheck: https://github.com/redis/redis/issues/4624
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+
+  dramatiq-workers:
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+    env_file: .env.prod
+    command: pipenv run python manage.py rundramatiq
+    volumes:
+      - .:/code
+    depends_on:
+      django:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:172.177.0.1"
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+    env_file: .env.prod
+    command: pipenv run python manage.py run_scheduler
+    volumes:
+      - .:/code
+    depends_on:
+      django:
+        condition: service_started
+      dramatiq-workers:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:172.177.0.1"
+
+# use fixed subnet so that we can bind host.docker.internal to host ip
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.177.0.0/16

@@ -1,0 +1,41 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "==4.1.3"
+djangorestframework = "==3.14.0"
+djangorestframework-guardian = "==0.3.0"
+djangorestframework-simplejwt = "==4.6.0"
+django-cors-headers = "==3.11.0"
+django-filter = "==21.1"
+django-guardian = "==2.3.0"
+django-model-utils = "==4.2.0"
+gunicorn = "==20.1.0"
+whitenoise = "==6.2.0"
+dj-database-url = "==0.5.0"
+psycopg2-binary = "==2.9.3"
+ecdsa = "==0.17.0"
+pycryptodomex = "==3.14.1"
+requests = "==2.27.1"
+django-environ = "==0.8.1"
+django-dramatiq = "==0.10.0"
+dramatiq = {extras = ["watch", "redis"]}
+redis = "==4.2.2"
+apscheduler = "==3.9.1"
+pytz = "==2022.1"
+# TODO: upgrade to v4 when they fix a bug mentioned in https://github.com/django/channels_redis/issues/332
+# channels = { version = "==4.0.0", extras = ["daphne"]}
+channels = { version = "==3.0.4", extras = ["daphne"]}
+# channels_redis = "==4.0.0"
+channels_redis = "==3.3.1"
+dramatiq_abort = "==1.0.0"
+drf-nested-routers = "==0.93.4"
+python-json-logger = "==2.0.4"
+awesome-slugify="==1.6.5"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"
